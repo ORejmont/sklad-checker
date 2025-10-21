@@ -183,6 +183,21 @@ if muj_file and dod_file:
             else:
                 st.info("✅ Všechny produkty se podařilo spárovat podle 'code'.")
 
+            # --- 🧩 Kontrola duplicitních "code" v mém exportu ---
+            duplicates = muj[muj["code"].astype(str).duplicated(keep=False)]
+            duplicates = duplicates[~duplicates["code"].isin(ignore_codes)]  # Ignoruj speciální kódy
+
+            if not duplicates.empty:
+                st.markdown("---")
+                st.subheader(f"⚠️ Nalezeny duplicitní kódy v mém exportu ({len(duplicates)})")
+                st.write("Níže jsou produkty, které mají stejný 'code':")
+                st.dataframe(
+                    duplicates[["code", "name", "defaultCategory", "stock", "productVisibility"]],
+                    use_container_width=True
+                )
+            else:
+                st.info("✅ Žádné duplicitní kódy nebyly nalezeny.")
+
             # --- Uložení výsledku ---
             output = BytesIO()
             muj.to_excel(output, index=False)

@@ -87,7 +87,7 @@ if muj_file and dod_file:
             pocet_zmen_stock = pocet_zmen_hidden = pocet_zmen_visible = 0
             chybejici_produkty = []
             chybejici_bez_namixuj = []
-            ignore_codes = {"86827", "3625"}
+            ignore_codes = {"86827", "3625", "6202", "6199", "6205"}
 
             # --- Hlavní logika ---
             for idx, row in muj.iterrows():

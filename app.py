@@ -136,10 +136,14 @@ if muj_file and dod_file:
                     # Proveď změnu jen, pokud se stav skutečně změnil
                     if visibility != nova_visibility:
                         muj.at[idx, "productVisibility"] = nova_visibility
-                        if nova_visibility == "hidden":
+
+                        # Zkontroluj finální stav po všech úpravách (včetně Namixuj variant)
+                        final_visibility = muj.at[idx, "productVisibility"]
+
+                        if final_visibility == "hidden":
                             pocet_zmen_hidden += 1
                             nove_skryte_produkty.append(muj.loc[idx].copy())
-                        else:
+                        elif final_visibility == "visible":
                             pocet_zmen_visible += 1
                             nove_viditelne_produkty.append(muj.loc[idx].copy())
 

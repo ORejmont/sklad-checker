@@ -52,7 +52,6 @@ dod_file = st.file_uploader("Nahraj **export dodavatele (.xlsx)**", type=["xlsx"
 if muj_file and dod_file:
     st.success("✅ Soubory nahrány, můžeš pokračovat níže.")
     
-    # Vytvoříme placeholder pro tlačítko, aby se mohlo změnit text
     button_placeholder = st.empty()
     start = button_placeholder.button("🚀 Zpracovat")
 
@@ -74,7 +73,6 @@ if muj_file and dod_file:
             muj["stock"] = pd.to_numeric(muj.get("stock", 0), errors="coerce").fillna(0).astype(int)
             dodavatel["stock"] = pd.to_numeric(dodavatel.get("stock", 0), errors="coerce").fillna(0).astype(int)
 
-            # --- Ulož si původní viditelnost, abychom mohli detekovat změny ---
             muj["_oldVisibility"] = muj["productVisibility"].astype(str).str.lower()
 
             # --- Najdi sloupec objemu ---
@@ -106,13 +104,13 @@ if muj_file and dod_file:
                 if code in ignore_codes:
                     continue
 
+                # Určení nového skladu
                 if code in dodavatel_stock_by_code:
                     novy_stock = dodavatel_stock_by_code[code]
                 else:
                     novy_stock = dodavatel_by_name_norm.get(name_norm, None)
 
                 if novy_stock is not None:
-                    # Aktualizace skladu
                     if aktualni_stock != novy_stock:
                         muj.at[idx, "stock"] = novy_stock
                         pocet_zmen_stock += 1
@@ -123,12 +121,19 @@ if muj_file and dod_file:
                         (muj["name"] == stejny_nazev) &
                         (muj["defaultCategory"].str.lower().str.strip() == "namixuj si dárkový box")
                     )
+
                     if maska_namixuj.any():
                         for idx_namixuj in muj[maska_namixuj].index:
                             velikost_nmj = get_objem_value(muj.loc[idx_namixuj], objem_col)
                             limit = thresholds.get(velikost_nmj, 9)
-                            stare_viz = muj.at[idx_namixuj, "productVisibility"]
-                            nove_viz = "hidden" if novy_stock <= limit else "visible"
+
+                            try:
+                                stock_val = int(novy_stock)
+                            except (TypeError, ValueError):
+                                stock_val = int(muj.loc[idx_namixuj].get("stock", 0))
+
+                            stare_viz = muj.loc[idx_namixuj, "_oldVisibility"]
+                            nove_viz = "hidden" if stock_val <= limit else "visible"
 
                             if stare_viz != nove_viz:
                                 muj.at[idx_namixuj, "productVisibility"] = nove_viz
@@ -140,18 +145,20 @@ if muj_file and dod_file:
                                     nove_viditelne_produkty.append(muj.loc[idx_namixuj].copy())
 
                     # --- Aktualizace hlavního produktu ---
-                    nova_visibility = "hidden" if novy_stock <= min_stock_hide else "visible"
-                    if old_viz != nova_visibility:
-                        muj.at[idx, "productVisibility"] = nova_visibility
-                        if nova_visibility == "hidden":
-                            pocet_zmen_hidden += 1
-                            nove_skryte_produkty.append(muj.loc[idx].copy())
-                        else:
-                            pocet_zmen_visible += 1
-                            nove_viditelne_produkty.append(muj.loc[idx].copy())
+                    is_namixuj = "namixuj si dárkový box" in kategorie
+
+                    if not is_namixuj:
+                        nova_visibility = "hidden" if novy_stock <= min_stock_hide else "visible"
+                        if old_viz != nova_visibility:
+                            muj.at[idx, "productVisibility"] = nova_visibility
+                            if nova_visibility == "hidden":
+                                pocet_zmen_hidden += 1
+                                nove_skryte_produkty.append(muj.loc[idx].copy())
+                            else:
+                                pocet_zmen_visible += 1
+                                nove_viditelne_produkty.append(muj.loc[idx].copy())
 
                 else:
-                    # Pokud produkt chybí u dodavatele
                     if "namixuj si dárkový box" in kategorie:
                         stejny_nazev = muj[
                             (muj["name"].str.strip() == name) &
@@ -159,27 +166,24 @@ if muj_file and dod_file:
                         ]
                         if not stejny_nazev.empty:
                             continue
+
                     muj.at[idx, "productVisibility"] = "hidden"
                     chybejici_produkty.append(row)
                     chybejici_bez_namixuj.append(row)
 
-            # --- Odstranit pomocný sloupec před uložením ---
+            # --- Odstranit pomocný sloupec ---
             if "_oldVisibility" in muj.columns:
                 muj = muj.drop(columns=["_oldVisibility"])
-            
             muj.reset_index(drop=True, inplace=True)
 
-            # --- Výstup ---
-            # --- Výpočet nově viditelných produktů ---
+            # --- Výstupy ---
             nove_viditelne = muj[
                 (muj["productVisibility"].astype(str).str.lower() == "visible") &
                 (~muj["code"].isin(ignore_codes))
             ]
-
             nove_viditelne_namixuj = nove_viditelne[
                 nove_viditelne["defaultCategory"].str.lower().str.contains("namixuj")
             ]
-
             nove_viditelne_bez_namixuj = nove_viditelne[
                 ~nove_viditelne["defaultCategory"].str.lower().str.contains("namixuj")
             ]
@@ -202,7 +206,6 @@ if muj_file and dod_file:
             else:
                 st.info("✅ Žádné produkty nechybí u dodavatele.")
 
-            # --- 🧩 Tabulka produktů, které se nově skryly ---
             if nove_skryte_produkty:
                 st.markdown("---")
                 st.subheader(f"🫥 Produkty, které se nově skryly ({len(nove_skryte_produkty)})")
@@ -214,7 +217,6 @@ if muj_file and dod_file:
             else:
                 st.info("✅ Žádné nové produkty se neskrývaly.")
 
-            # --- 🧩 Tabulka produktů, které se nově odkryly ---
             if nove_viditelne_produkty:
                 st.markdown("---")
                 st.subheader(f"👁️ Produkty, které se nově odkryly ({len(nove_viditelne_produkty)})")
@@ -226,13 +228,11 @@ if muj_file and dod_file:
             else:
                 st.info("✅ Žádné nové produkty se neodkryly.")
 
-            # --- 🧩 Tabulka produktů bez nalezeného matchnutého code ---
             unmatched = muj[
                 (~muj["code"].astype(str).isin(dodavatel["code"].astype(str))) &
                 (muj["defaultCategory"].str.lower().str.strip() != "namixuj si dárkový box") &
                 (~muj["code"].astype(str).isin(ignore_codes))
             ]
-
             if not unmatched.empty:
                 st.markdown("---")
                 st.subheader(f"⚠️ Produkty, které se nepodařilo spárovat podle 'code' ({len(unmatched)})")
@@ -243,9 +243,8 @@ if muj_file and dod_file:
             else:
                 st.info("✅ Všechny produkty se podařilo spárovat podle 'code'.")
 
-            # --- 🧩 Kontrola duplicitních "code" v mém exportu ---
             duplicates = muj[muj["code"].astype(str).duplicated(keep=False)]
-            duplicates = duplicates[~duplicates["code"].isin(ignore_codes)]  # Ignoruj speciální kódy
+            duplicates = duplicates[~duplicates["code"].isin(ignore_codes)]
 
             if not duplicates.empty:
                 st.markdown("---")

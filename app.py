@@ -122,29 +122,41 @@ if muj_file and dod_file:
                     )
                     if maska_namixuj.any():
                         for idx_namixuj in muj[maska_namixuj].index:
-                            muj.at[idx_namixuj, "stock"] = novy_stock
                             velikost_nmj = get_objem_value(muj.loc[idx_namixuj], objem_col)
                             limit = thresholds.get(velikost_nmj, 9)
+                            stare_viz = muj.at[idx_namixuj, "productVisibility"]
                             if novy_stock <= limit:
                                 muj.at[idx_namixuj, "productVisibility"] = "hidden"
                             else:
                                 muj.at[idx_namixuj, "productVisibility"] = "visible"
+                            nove_viz = muj.at[idx_namixuj, "productVisibility"]
+                            print(f"   🔄 NAMIXUJ {muj.at[idx_namixuj,'code']} – stock {novy_stock}, limit {limit}, "
+                                f"old: {stare_viz} → new: {nove_viz}")
 
                     # --- Urči správnou viditelnost hlavního produktu ---
                     nova_visibility = "hidden" if novy_stock <= min_stock_hide else "visible"
+                    stare_viz = muj.at[idx, "productVisibility"]
                     muj.at[idx, "productVisibility"] = nova_visibility
+                    nove_viz = muj.at[idx, "productVisibility"]
+
+                    print(f"\n🧩 {code} | {name}")
+                    print(f"   Kategorie: {kategorie}")
+                    print(f"   Stock: {novy_stock} (min={min_stock_hide})")
+                    print(f"   Původní stav: {visibility}, Nový stav: {nova_visibility}")
+                    print(f"   Po úpravách: {nove_viz}\n")
 
                     # --- Po všech úpravách zkontroluj finální stav ---
                     final_visibility = muj.at[idx, "productVisibility"]
 
-                    # Přidej jen produkty, jejichž finální stav se liší od původního
                     if visibility != final_visibility:
                         if final_visibility == "hidden":
                             pocet_zmen_hidden += 1
                             nove_skryte_produkty.append(muj.loc[idx].copy())
+                            print(f"   🫥 Přidán do SKRYTÝCH ({code})")
                         elif final_visibility == "visible":
                             pocet_zmen_visible += 1
                             nove_viditelne_produkty.append(muj.loc[idx].copy())
+                            print(f"   👁️ Přidán do VIDITELNÝCH ({code})")
 
                 else:
                     if "namixuj si dárkový box" in kategorie:

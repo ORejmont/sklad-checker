@@ -132,14 +132,13 @@ if muj_file and dod_file:
 
                     # --- Urči správnou viditelnost hlavního produktu ---
                     nova_visibility = "hidden" if novy_stock <= min_stock_hide else "visible"
+                    muj.at[idx, "productVisibility"] = nova_visibility
 
-                    # Proveď změnu jen, pokud se stav skutečně změnil
-                    if visibility != nova_visibility:
-                        muj.at[idx, "productVisibility"] = nova_visibility
+                    # --- Po všech úpravách zkontroluj finální stav ---
+                    final_visibility = muj.at[idx, "productVisibility"]
 
-                        # Zkontroluj finální stav po všech úpravách (včetně Namixuj variant)
-                        final_visibility = muj.at[idx, "productVisibility"]
-
+                    # Přidej jen produkty, jejichž finální stav se liší od původního
+                    if visibility != final_visibility:
                         if final_visibility == "hidden":
                             pocet_zmen_hidden += 1
                             nove_skryte_produkty.append(muj.loc[idx].copy())
@@ -159,7 +158,6 @@ if muj_file and dod_file:
                     muj.at[idx, "productVisibility"] = "hidden"
                     chybejici_produkty.append(row)
                     chybejici_bez_namixuj.append(row)
-
 
             # --- Výstup ---
             # --- Výpočet nově viditelných produktů ---

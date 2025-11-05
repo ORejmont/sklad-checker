@@ -166,6 +166,22 @@ if muj_file and dod_file:
             else:
                 st.info("✅ Žádné produkty nechybí u dodavatele.")
 
+            # --- 🧩 Tabulka produktů, které se skryly a nejsou Namixuj ---
+            skryte_mimo_namixuj = muj[
+                (muj["productVisibility"].astype(str).str.lower() == "hidden") &
+                (muj["defaultCategory"].str.lower().str.strip() != "namixuj si dárkový box")
+            ]
+
+            if not skryte_mimo_namixuj.empty:
+                st.markdown("---")
+                st.subheader(f"🫥 Produkty, které se skryly a nejsou v mixu ({len(skryte_mimo_namixuj)})")
+                st.dataframe(
+                    skryte_mimo_namixuj[["code", "name", "defaultCategory", "stock", "productVisibility"]],
+                    use_container_width=True
+                )
+            else:
+                st.info("✅ Žádné produkty mimo Namixuj se neskrývaly.")
+
             # --- 🧩 Tabulka produktů bez nalezeného matchnutého code ---
             unmatched = muj[
                 (~muj["code"].astype(str).isin(dodavatel["code"].astype(str))) &

@@ -118,14 +118,14 @@ if muj_file and dod_file:
                         pocet_zmen_hidden += 1
 
                         # Ulož produkt, který se nově skryl a není v mixu
-                        if "namixuj si dárkový box" not in kategorie:
+                        if "namixuj si dárkový box" not in str(muj.at[idx, "defaultCategory"]).lower():
                             nove_skryte_produkty.append(muj.loc[idx].copy())
                     elif novy_stock > min_stock_hide and visibility != "visible":
                         muj.at[idx, "productVisibility"] = "visible"
                         pocet_zmen_visible += 1
 
                         # Ulož produkt, který se nově odkryl a není v mixu
-                        if "namixuj si dárkový box" not in kategorie:
+                        if "namixuj si dárkový box" not in str(muj.at[idx, "defaultCategory"]).lower():
                             nove_viditelne_produkty.append(muj.loc[idx].copy())
 
                     stejny_nazev = row.get("name", "")

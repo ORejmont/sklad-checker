@@ -88,6 +88,7 @@ if muj_file and dod_file:
             chybejici_produkty = []
             chybejici_bez_namixuj = []
             ignore_codes = {"86827", "3625", "6202", "6199", "6205"}
+            nove_skryte_produkty = []
 
             # --- Hlavní logika ---
             for idx, row in muj.iterrows():
@@ -114,6 +115,10 @@ if muj_file and dod_file:
                     if novy_stock <= min_stock_hide and visibility != "hidden":
                         muj.at[idx, "productVisibility"] = "hidden"
                         pocet_zmen_hidden += 1
+
+                        # Ulož produkt, který se nově skryl a není v mixu
+                        if "namixuj si dárkový box" not in kategorie:
+                            nove_skryte_produkty.append(row)
                     elif novy_stock > min_stock_hide and visibility != "visible":
                         muj.at[idx, "productVisibility"] = "visible"
                         pocet_zmen_visible += 1
@@ -166,21 +171,17 @@ if muj_file and dod_file:
             else:
                 st.info("✅ Žádné produkty nechybí u dodavatele.")
 
-            # --- 🧩 Tabulka produktů, které se skryly a nejsou Namixuj ---
-            skryte_mimo_namixuj = muj[
-                (muj["productVisibility"].astype(str).str.lower() == "hidden") &
-                (muj["defaultCategory"].str.lower().str.strip() != "namixuj si dárkový box")
-            ]
-
-            if not skryte_mimo_namixuj.empty:
+            # --- 🧩 Tabulka produktů, které se nově skryly a nejsou Namixuj ---
+            if nove_skryte_produkty:
                 st.markdown("---")
-                st.subheader(f"🫥 Produkty, které se skryly a nejsou v mixu ({len(skryte_mimo_namixuj)})")
+                st.subheader(f"🫥 Produkty, které se nově skryly a nejsou v mixu ({len(nove_skryte_produkty)})")
+                nove_skryte_df = pd.DataFrame(nove_skryte_produkty).drop_duplicates(subset=["code"])
                 st.dataframe(
-                    skryte_mimo_namixuj[["code", "name", "defaultCategory", "stock", "productVisibility"]],
+                    nove_skryte_df[["code", "name", "defaultCategory", "stock", "productVisibility"]],
                     use_container_width=True
                 )
             else:
-                st.info("✅ Žádné produkty mimo Namixuj se neskrývaly.")
+                st.info("✅ Žádné nové produkty mimo Namixuj se neskrývaly.")
 
             # --- 🧩 Tabulka produktů bez nalezeného matchnutého code ---
             unmatched = muj[

@@ -109,25 +109,12 @@ if muj_file and dod_file:
                     novy_stock = dodavatel_by_name_norm.get(name_norm, None)
 
                 if novy_stock is not None:
+                    # Aktualizuj sklad
                     if aktualni_stock != novy_stock:
                         muj.at[idx, "stock"] = novy_stock
                         pocet_zmen_stock += 1
 
-                    # --- SKRYTÍ PRODUKTU ---
-                    if novy_stock <= min_stock_hide and visibility != "hidden":
-                        muj.at[idx, "productVisibility"] = "hidden"
-                        pocet_zmen_hidden += 1
-                        # Ulož všechny produkty (včetně Namixuj)
-                        nove_skryte_produkty.append(muj.loc[idx].copy())
-
-                    # --- ODKRYTÍ PRODUKTU ---
-                    elif novy_stock > min_stock_hide and visibility != "visible":
-                        muj.at[idx, "productVisibility"] = "visible"
-                        pocet_zmen_visible += 1
-                        # Ulož všechny produkty (včetně Namixuj)
-                        nove_viditelne_produkty.append(muj.loc[idx].copy())
-
-                    # --- Aktualizace Namixuj variant ---
+                    # --- Aktualizuj varianty Namixuj nejdřív ---
                     stejny_nazev = row.get("name", "")
                     maska_namixuj = (
                         (muj["name"] == stejny_nazev) &
@@ -142,6 +129,19 @@ if muj_file and dod_file:
                                 muj.at[idx_namixuj, "productVisibility"] = "hidden"
                             else:
                                 muj.at[idx_namixuj, "productVisibility"] = "visible"
+
+                    # --- Urči správnou viditelnost hlavního produktu ---
+                    nova_visibility = "hidden" if novy_stock <= min_stock_hide else "visible"
+
+                    # Proveď změnu jen, pokud se stav skutečně změnil
+                    if visibility != nova_visibility:
+                        muj.at[idx, "productVisibility"] = nova_visibility
+                        if nova_visibility == "hidden":
+                            pocet_zmen_hidden += 1
+                            nove_skryte_produkty.append(muj.loc[idx].copy())
+                        else:
+                            pocet_zmen_visible += 1
+                            nove_viditelne_produkty.append(muj.loc[idx].copy())
 
                 else:
                     if "namixuj si dárkový box" in kategorie:

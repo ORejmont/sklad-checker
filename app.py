@@ -89,6 +89,7 @@ if muj_file and dod_file:
             chybejici_bez_namixuj = []
             ignore_codes = {"86827", "3625", "6202", "6199", "6205"}
             nove_skryte_produkty = []
+            nove_viditelne_produkty = []
 
             # --- Hlavní logika ---
             for idx, row in muj.iterrows():
@@ -122,6 +123,10 @@ if muj_file and dod_file:
                     elif novy_stock > min_stock_hide and visibility != "visible":
                         muj.at[idx, "productVisibility"] = "visible"
                         pocet_zmen_visible += 1
+
+                        # Ulož produkt, který se nově odkryl a není v mixu
+                        if "namixuj si dárkový box" not in kategorie:
+                            nove_viditelne_produkty.append(row)
 
                     stejny_nazev = row.get("name", "")
                     maska_namixuj = (
@@ -196,6 +201,18 @@ if muj_file and dod_file:
                 )
             else:
                 st.info("✅ Žádné nové produkty mimo Namixuj se neskrývaly.")
+
+            # --- 🧩 Tabulka produktů, které se nově odkryly a nejsou Namixuj ---
+            if nove_viditelne_produkty:
+                st.markdown("---")
+                st.subheader(f"👁️ Produkty, které se nově odkryly a nejsou v mixu ({len(nove_viditelne_produkty)})")
+                nove_viditelne_df = pd.DataFrame(nove_viditelne_produkty).drop_duplicates(subset=["code"])
+                st.dataframe(
+                    nove_viditelne_df[["code", "name", "defaultCategory", "stock", "productVisibility"]],
+                    use_container_width=True
+                )
+            else:
+                st.info("✅ Žádné nové produkty mimo Namixuj se neodkryly.")
 
             # --- 🧩 Tabulka produktů bez nalezeného matchnutého code ---
             unmatched = muj[

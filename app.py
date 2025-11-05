@@ -74,6 +74,9 @@ if muj_file and dod_file:
             muj["stock"] = pd.to_numeric(muj.get("stock", 0), errors="coerce").fillna(0).astype(int)
             dodavatel["stock"] = pd.to_numeric(dodavatel.get("stock", 0), errors="coerce").fillna(0).astype(int)
 
+            # --- Ulož si původní viditelnost, abychom mohli detekovat změny ---
+            muj["_oldVisibility"] = muj["productVisibility"].astype(str).str.lower()
+
             # --- Najdi sloupec objemu ---
             objem_col = None
             for col in muj.columns:
@@ -96,9 +99,9 @@ if muj_file and dod_file:
                 code = str(row.get("code", "")).strip()
                 name = str(row.get("name", "")).strip()
                 name_norm = normalize_name(name)
-                visibility = str(row.get("productVisibility", "")).strip()
                 aktualni_stock = int(row.get("stock", 0))
                 kategorie = str(row.get("defaultCategory", "")).lower().strip()
+                old_viz = str(row.get("_oldVisibility", "")).lower()
 
                 if code in ignore_codes:
                     continue
@@ -109,12 +112,12 @@ if muj_file and dod_file:
                     novy_stock = dodavatel_by_name_norm.get(name_norm, None)
 
                 if novy_stock is not None:
-                    # Aktualizuj sklad
+                    # Aktualizace skladu
                     if aktualni_stock != novy_stock:
                         muj.at[idx, "stock"] = novy_stock
                         pocet_zmen_stock += 1
 
-                    # --- Aktualizuj varianty Namixuj nejdřív ---
+                    # --- Aktualizace Namixuj variant ---
                     stejny_nazev = row.get("name", "")
                     maska_namixuj = (
                         (muj["name"] == stejny_nazev) &
@@ -125,40 +128,30 @@ if muj_file and dod_file:
                             velikost_nmj = get_objem_value(muj.loc[idx_namixuj], objem_col)
                             limit = thresholds.get(velikost_nmj, 9)
                             stare_viz = muj.at[idx_namixuj, "productVisibility"]
-                            if novy_stock <= limit:
-                                muj.at[idx_namixuj, "productVisibility"] = "hidden"
-                            else:
-                                muj.at[idx_namixuj, "productVisibility"] = "visible"
-                            nove_viz = muj.at[idx_namixuj, "productVisibility"]
-                            print(f"   🔄 NAMIXUJ {muj.at[idx_namixuj,'code']} – stock {novy_stock}, limit {limit}, "
-                                f"old: {stare_viz} → new: {nove_viz}")
+                            nove_viz = "hidden" if novy_stock <= limit else "visible"
 
-                    # --- Urči správnou viditelnost hlavního produktu ---
+                            if stare_viz != nove_viz:
+                                muj.at[idx_namixuj, "productVisibility"] = nove_viz
+                                if nove_viz == "hidden":
+                                    pocet_zmen_hidden += 1
+                                    nove_skryte_produkty.append(muj.loc[idx_namixuj].copy())
+                                else:
+                                    pocet_zmen_visible += 1
+                                    nove_viditelne_produkty.append(muj.loc[idx_namixuj].copy())
+
+                    # --- Aktualizace hlavního produktu ---
                     nova_visibility = "hidden" if novy_stock <= min_stock_hide else "visible"
-                    stare_viz = muj.at[idx, "productVisibility"]
-                    muj.at[idx, "productVisibility"] = nova_visibility
-                    nove_viz = muj.at[idx, "productVisibility"]
-
-                    print(f"\n🧩 {code} | {name}")
-                    print(f"   Kategorie: {kategorie}")
-                    print(f"   Stock: {novy_stock} (min={min_stock_hide})")
-                    print(f"   Původní stav: {visibility}, Nový stav: {nova_visibility}")
-                    print(f"   Po úpravách: {nove_viz}\n")
-
-                    # --- Po všech úpravách zkontroluj finální stav ---
-                    final_visibility = muj.at[idx, "productVisibility"]
-
-                    if visibility != final_visibility:
-                        if final_visibility == "hidden":
+                    if old_viz != nova_visibility:
+                        muj.at[idx, "productVisibility"] = nova_visibility
+                        if nova_visibility == "hidden":
                             pocet_zmen_hidden += 1
                             nove_skryte_produkty.append(muj.loc[idx].copy())
-                            print(f"   🫥 Přidán do SKRYTÝCH ({code})")
-                        elif final_visibility == "visible":
+                        else:
                             pocet_zmen_visible += 1
                             nove_viditelne_produkty.append(muj.loc[idx].copy())
-                            print(f"   👁️ Přidán do VIDITELNÝCH ({code})")
 
                 else:
+                    # Pokud produkt chybí u dodavatele
                     if "namixuj si dárkový box" in kategorie:
                         stejny_nazev = muj[
                             (muj["name"].str.strip() == name) &
@@ -166,10 +159,15 @@ if muj_file and dod_file:
                         ]
                         if not stejny_nazev.empty:
                             continue
-
                     muj.at[idx, "productVisibility"] = "hidden"
                     chybejici_produkty.append(row)
                     chybejici_bez_namixuj.append(row)
+
+            # --- Odstranit pomocný sloupec před uložením ---
+            if "_oldVisibility" in muj.columns:
+                muj = muj.drop(columns=["_oldVisibility"])
+            
+            muj.reset_index(drop=True, inplace=True)
 
             # --- Výstup ---
             # --- Výpočet nově viditelných produktů ---

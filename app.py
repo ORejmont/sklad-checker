@@ -153,14 +153,28 @@ if muj_file and dod_file:
                         chybejici_bez_namixuj.append(row)
 
             # --- Výstup ---
-            celkem_visible = (muj["productVisibility"].astype(str).str.lower() == "visible").sum()
+            # --- Výpočet nově viditelných produktů ---
+            nove_viditelne = muj[
+                (muj["productVisibility"].astype(str).str.lower() == "visible") &
+                (~muj["code"].isin(ignore_codes))
+            ]
+
+            nove_viditelne_namixuj = nove_viditelne[
+                nove_viditelne["defaultCategory"].str.lower().str.contains("namixuj")
+            ]
+
+            nove_viditelne_bez_namixuj = nove_viditelne[
+                ~nove_viditelne["defaultCategory"].str.lower().str.contains("namixuj")
+            ]
 
             st.success("✅ Zpracování dokončeno!")
             st.write(f"📊 Změněných skladů: {pocet_zmen_stock}")
             st.write(f"🔻 Skrytých produktů: {pocet_zmen_hidden}")
             st.write(f"👁️ Zviditelněných produktů: {pocet_zmen_visible}")
             st.write(f"❌ Chybějících produktů (bez Namixuj): {len(chybejici_bez_namixuj)}")
-            st.write(f"✅ Viditelných po úpravě: **{celkem_visible}**")
+            st.write(f"✅ Viditelných po úpravě celkem: **{len(nove_viditelne)}**")
+            st.write(f" • mimo Namixuj: {len(nove_viditelne_bez_namixuj)}")
+            st.write(f" • v Namixuj: {len(nove_viditelne_namixuj)}")
 
             st.markdown("---")
             if chybejici_produkty:
